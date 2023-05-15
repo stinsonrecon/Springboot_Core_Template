@@ -3,6 +3,7 @@ package vn.com.core.common.utils;
 import org.springframework.data.domain.Sort;
 import vn.com.core.common.dto.OrderBy;
 import vn.com.core.common.dto.TreeData;
+import vn.com.core.common.dto.TreeDataString;
 
 import javax.persistence.Query;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -16,24 +17,60 @@ import java.util.Map;
 public class DataUtil {
 
     public static List<? extends TreeData> parseToTree(List<? extends TreeData> lstData) {
-        if (ValidationUtil.isNullOrEmpty(lstData)) {
+        if (lstData == null || lstData.size() <= 0) {
             return new ArrayList<TreeData>();
         }
 
         List<TreeData> lstTreeData = new ArrayList<TreeData>();
-        Map<Long, TreeData> mapTreeData = new HashMap<Long, TreeData>();
+        Map<Long, TreeData> mapTreeData = new HashMap<>();
 
         for (TreeData node : lstData) {
             Long nodeId = node.getNodeId();
             mapTreeData.put(nodeId, node);
             if (node.isRoot()) {
                 lstTreeData.add(node);
+                continue;
             }
-        }
-        for (TreeData node : lstData) {
+
             TreeData parentNode = mapTreeData.get(node.getParentNodeId());
             if (parentNode != null) {
                 parentNode.addChild(node);
+            }
+            if (!node.isRoot() && parentNode == null) {
+                lstTreeData.add(node);
+            }
+        }
+
+        return lstTreeData;
+    }
+
+    public static List<? extends TreeDataString> parseToTreeString(List<? extends TreeDataString> lstData, Object o) {
+        if (lstData == null || lstData.size() <= 0) {
+            return new ArrayList<TreeDataString>();
+        }
+
+        List<TreeDataString> lstTreeData = new ArrayList<TreeDataString>();
+        Map<String, TreeDataString> mapTreeData = new HashMap<>();
+
+        for (TreeDataString node : lstData) {
+            if (o != null) {
+                node.setData(o);
+            }
+//            node.setAppName(appName);
+//            node.setIsManaged(isManaged);
+            String nodeCode = node.getNodeCode();
+            mapTreeData.put(nodeCode, node);
+            if (node.isRoot()) {
+                lstTreeData.add(node);
+                continue;
+            }
+
+            TreeDataString parentNode = mapTreeData.get(node.getParentNodeCode());
+            if (parentNode != null) {
+                parentNode.addChild(node);
+            }
+            if (!node.isRoot() && parentNode == null) {
+                lstTreeData.add(node);
             }
         }
 

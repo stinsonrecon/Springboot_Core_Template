@@ -3,10 +3,14 @@ package vn.com.core.common.utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ValidationUtil extends AssertionUtil {
+    public static boolean isNullOrEmpty(List<?> list) {
+        return list == null || list.isEmpty();
+    }
 
     public static boolean isNullOrEmpty(String st) {
         return st == null || st.equals("");

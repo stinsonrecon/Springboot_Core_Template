@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import vn.com.hust.common.CommonConstant;
-import vn.com.hust.common.Constants;
+import vn.com.hust.common.AppPath;
 import vn.com.hust.dto.CommonValuesInput;
 import vn.com.hust.dto.MessagesResponse;
 import vn.com.hust.dto.ReportRequestObject;
@@ -34,7 +34,7 @@ public class ReportEngineContoller {
 
     private static final Logger LOG = LoggerFactory.getLogger(ReportEngineContoller.class);
 
-    @RequestMapping(value = { Constants.ACTION_EXPORT_FILE }, method = RequestMethod.POST)
+    @RequestMapping(value = { AppPath.ACTION_EXPORT_FILE }, method = RequestMethod.POST)
     public ResponseEntity<?> exportLogin(@RequestBody CommonValuesInput input) {
         String nomeMetodo = ".exportLogin() ";
         LOG.info(LOG.getName() + nomeMetodo + " user: "

@@ -8,8 +8,8 @@ import java.util.Date;
 
 @Data
 @Entity
-@Table(name = "admin")
-public class Admin {
+@Table(name = "catalog")
+public class Catalog {
     private static final long serialVersionUID = 1L;
 
     @Id
@@ -17,17 +17,17 @@ public class Admin {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "username")
-    private String username;
+    @Column(name = "catalog_code")
+    private String catalogCode;
 
-    @Column(name = "password")
-    private String password;
+    @Column(name = "catalog_name")
+    private String catalogName;
 
-    @Column(name = "name")
-    private String name;
+    @Column(name = "parent_id")
+    private Long parentId;
 
-    @Column(name = "link_img")
-    private String linkImg;
+    @Column(name = "status")
+    private Long status;
 
     @JsonFormat(pattern="dd/MM/yyyy")
     @Column(name = "CREATED_AT", columnDefinition = "datetime default NOW()")
@@ -36,4 +36,13 @@ public class Admin {
     @JsonFormat(pattern="dd/MM/yyyy")
     @Column(name = "UPDATED_AT")
     private Date updatedAt;
+
+    @Transient
+    private String createdAtString;
+
+    @Transient
+    private String updatedAtString;
+
+    @Transient
+    private Long level;
 }
