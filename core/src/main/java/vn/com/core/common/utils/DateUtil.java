@@ -372,4 +372,22 @@ public class DateUtil {
         SimpleDateFormat fmt = new SimpleDateFormat(FORMAT_DATE2);
         return fmt.format(date1).equals(fmt.format(date2));
     }
+
+    public static boolean isInBetween(String startTime, String endTime, String checkTime) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.US);
+        LocalTime startLocalTime = LocalTime.parse(startTime, formatter);
+        LocalTime endLocalTime = LocalTime.parse(endTime, formatter);
+        LocalTime checkLocalTime = LocalTime.parse(checkTime, formatter);
+
+        boolean isInBetween = false;
+        if (endLocalTime.isAfter(startLocalTime)) {
+            if (startLocalTime.isBefore(checkLocalTime) && endLocalTime.isAfter(checkLocalTime)) {
+                isInBetween = true;
+            }
+        } else if (checkLocalTime.isAfter(startLocalTime) || checkLocalTime.isBefore(endLocalTime)) {
+            isInBetween = true;
+        }
+
+        return isInBetween;
+    }
 }

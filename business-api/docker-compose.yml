@@ -3,3 +3,27 @@ services:
   business-api:
     build: .
     image: business-api:latest
+
+  keycloak:
+    image: jboss/keycloak
+    environment:
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin
+    ports:
+      - 8080:8080
+    depends_on:
+      - mariadb
+    networks:
+      - keycloak-network
+
+  mariadb:
+    image: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=
+      - MYSQL_DATABASE=keycloak
+      - MYSQL_USER=keycloak
+      - MYSQL_PASSWORD=keycloak
+    volumes:
+      - ./data:/var/lib/mysql
+    networks:
+      - keycloak-network
