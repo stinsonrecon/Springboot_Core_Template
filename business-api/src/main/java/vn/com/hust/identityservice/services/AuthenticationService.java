@@ -21,10 +21,7 @@ import vn.com.hust.admin.data.CommonData;
 import vn.com.hust.admin.model.SecSystemPolicy;
 import vn.com.hust.admin.model.SecUser;
 import vn.com.hust.admin.repository.SecSystemPolicyRepository;
-import vn.com.hust.identityservice.data.ErrorCode;
-import vn.com.hust.identityservice.data.LoginData;
-import vn.com.hust.identityservice.data.TokenData;
-import vn.com.hust.identityservice.data.UserData;
+import vn.com.hust.identityservice.data.*;
 import vn.com.hust.identityservice.message.request.LoginRequest;
 import vn.com.hust.identityservice.repository.SecUserRepository;
 import vn.com.hust.identityservice.repository.SiteMapExRepository;
@@ -75,11 +72,171 @@ public abstract class AuthenticationService {
     public abstract void resetFailAttempts(String username);
 
     public CommonData login(LoginRequest loginRequest) {
+        log.debug("Request login from user: {}", loginRequest.getUsername());
+        CommonData returnFail = CommonData.builder()
+                .code(Constants.SUCCESSFUL)
+                .message("")
+                .body(null)
+                .build();
+        Authentication authentication = null;
+        SecSystemPolicy policyManagement = null;
+        SecSystemPolicy policyLockTime = null;
+        try {
+            if (!"MOBILE".equals(loginRequest.getAppCode())) {
+                policyManagement = secSystemPolicyRepository.findByPolicyType("WEB_LOGIN_MANAGEMENT");
+                if (policyManagement != null && "1".equals(StringUtil.nvl(policyManagement.getPolicyValue(), ""))) {
+                    policyLockTime = secSystemPolicyRepository.findByPolicyType("LOCK_TIME_INCORRECT_INPUT");
+                }
+            }
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+            SecSystemPolicy policy = secSystemPolicyRepository.findByPolicyType("AUTHENTICATION_2_FACTOR");
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+//            checkIpAccess(authentication, loginRequest.getIpAddress());
+            if (!"MOBILE".equals(loginRequest.getAppCode())) {
+                if (policyManagement != null && "1".equals(StringUtil.nvl(policyManagement.getPolicyValue(), ""))) {
+                    if (policyLockTime != null && !"".equals(StringUtil.nvl(policyLockTime.getPolicyValue(), ""))) {
+                        SecUser secUser = secUserRepository.findFirstByUserNameIgnoreCase(loginRequest.getUsername())
+                                .orElseThrow(
+                                        () -> new UsernameNotFoundException(
+                                                "User Not Found with -> username or email : " + loginRequest
+                                                        .getUsername()));
+                        Date blockDate = secUser.getLastBlockDate();
+                        if (secUser.getLastBlockDate() != null) {
+                            if (DateUtil.addMinute(blockDate, Integer.parseInt(policyLockTime.getPolicyValue()))
+                                    .after(new Date())) {
+                                long difference = DateUtil.addMinute(blockDate,
+                                        Integer.parseInt(
+                                                policyLockTime.getPolicyValue()))
+                                        .getTime() - new Date().getTime();
+                                throw new BadCredentialsException("LOCK_MINUTE" + difference / 1000);
+                            }
+                            secUser.setLastBlockDate(null);
+                            secUser.setLoginFailureCount(null);
+                            secUserRepository.save(secUser);
+                        }
+                    }
+                }
+            }
+            if (policy != null && "1".equals(StringUtil.nvl(policy.getPolicyValue(), ""))
+                /*&& !"".equals(StringUtil.nvl(((AdminUserPrinciple) authentication.getPrincipal()).getEmail(), "").trim())*/) {
+                ((AdminUserPrinciple) authentication.getPrincipal()).setAuthentication2Factor("1");
+            } else {
+                logWhenLogin(authentication, loginRequest.getIpAddress(), 1L, null);
+            }
+        } catch (BadCredentialsException e) {
+//            e.printStackTrace();
+            log.error(e.toString(), e);
+            SecUser secUser = secUserRepository.findFirstByUserNameIgnoreCase(loginRequest.getUsername()).orElseThrow(
+                    () -> new UsernameNotFoundException(
+                            "User Not Found with -> username or email : " + loginRequest.getUsername()));
+            logWhenLogin(null, loginRequest.getIpAddress(), 0L, String.valueOf(secUser.getUserId()));
+            log.error("Login failed username: {}", loginRequest.getUsername());
+            if (!e.getMessage().contains("LOCK_MINUTE")) {
+                try {
+                    updateFailAttempts(loginRequest.getUsername(), policyLockTime, loginRequest.getAppCode());
+                } catch (LockedException lockedException) {
+//                    lockedException.printStackTrace();
+                    log.error(lockedException.toString(), lockedException);
+                    log.error("Account locked username: {" + loginRequest.getUsername() + "}");
+                    if (lockedException.getMessage().contains("LOCK_MINUTE")) {
+                        returnFail.setCode(Constants.ERROR_LOCK_TIME);
+                        returnFail.setMessage(lockedException.getMessage().substring(
+                                lockedException.getMessage().indexOf("LOCK_MINUTE") + 11));
+                    } else {
+                        returnFail.setCode(Constants.ERROR_SYSTEM);
+                        returnFail.setMessage(ErrorCode.ERROR_003);
+                    }
+                    return returnFail;
+                }
+            }
+            if (e.getMessage().contains("LOCK_MINUTE")) {
+                returnFail.setCode(Constants.ERROR_LOCK_TIME);
+                returnFail.setMessage(e.getMessage().substring(
+                        e.getMessage().indexOf("LOCK_MINUTE") + 11));
+            } else {
+                returnFail.setCode(Constants.ERROR_SYSTEM);
+                returnFail.setMessage(ErrorCode.ERROR_009);
+            }
+            return returnFail;
+        } catch (LockedException e) {
+//            e.printStackTrace();
+            log.error(e.toString(), e);
+            SecUser secUser = secUserRepository.findFirstByUserNameIgnoreCase(loginRequest.getUsername()).orElseThrow(
+                    () -> new UsernameNotFoundException(
+                            "User Not Found with -> username or email : " + loginRequest.getUsername()));
+            logWhenLogin(null, loginRequest.getIpAddress(), 0L, String.valueOf(secUser.getUserId()));
+            log.error("Account locked username: {" + loginRequest.getUsername() + "}");
+            //throw e;
+            returnFail.setCode(Constants.ERROR_SYSTEM);
+            returnFail.setMessage(ErrorCode.ERROR_003);
+            return returnFail;
+        } catch (AppException e) {
+//            e.printStackTrace();
+            log.error(e.getMessage(), e);
+            SecUser secUser = secUserRepository.findFirstByUserNameIgnoreCase(loginRequest.getUsername()).orElseThrow(
+                    () -> new UsernameNotFoundException(
+                            "User Not Found with -> username or email : " + loginRequest.getUsername()));
+            logWhenLogin(null, loginRequest.getIpAddress(), 0L, String.valueOf(secUser.getUserId()));
+            //throw e;
+            returnFail.setCode(Constants.ERROR_SYSTEM);
+            returnFail.setMessage(e.getMessage());
+            return returnFail;
+        } catch (UsernameNotFoundException e) {
+//            e.printStackTrace();
+            log.error(e.toString(), e);
+            log.error(e.getMessage(), loginRequest.getUsername());
+            //Da not found roi khong find lai nua --> comment
+            /*SecUser secUser = secUserRepository.findFirstByUserNameIgnoreCase( loginRequest.getUsername() ).orElseThrow(
+                    () -> new UsernameNotFoundException(
+                            "User Not Found with -> username or email : " + loginRequest.getUsername() ) );
+            logWhenLogin( null, loginRequest.getIpAddress(), 0L, secUser.getUserId() );*/
+            returnFail.setCode(Constants.ERROR_SYSTEM);
+            returnFail.setMessage(ErrorCode.ERROR_009);
+            return returnFail;
+        } catch (Exception e) {
+//            e.printStackTrace();
+            log.error(e.toString(), e);
+            log.error(e.getMessage(), loginRequest.getUsername());
+            SecUser secUser = secUserRepository.findFirstByUserNameIgnoreCase(loginRequest.getUsername()).orElseThrow(
+                    () -> new UsernameNotFoundException(
+                            "User Not Found with -> username or email : " + loginRequest.getUsername()));
+            logWhenLogin(null, loginRequest.getIpAddress(), 0L, String.valueOf(secUser.getUserId()));
+            returnFail.setCode(Constants.ERROR_SYSTEM);
+            returnFail.setMessage(ErrorCode.ERROR_999);
+            return returnFail;
+        }
+
+        resetFailAttempts(loginRequest.getUsername());
+        ((AdminUserPrinciple) authentication.getPrincipal()).setPassword(null);
+        SecSystemPolicy policyManagementTimeOut =
+                secSystemPolicyRepository.findByPolicyType("EXPIRATION_TIME_LOGIN_SESSION");
+        String timeOut = null;
+        if (policyManagement != null && !"".equals(StringUtil.nvl(policyManagement.getPolicyValue(), ""))) {
+            timeOut = String.valueOf(Integer.parseInt(policyManagement.getPolicyValue()) * 60 * 1000);
+        }
+
+        //QuangBC generate token
+        TokenData tokenData = null;
+        try {
+            tokenData = jwtService.generateToken2(((UserDetails) authentication.getPrincipal()).getUsername(), Long.valueOf(getUserId(authentication)));
+            ((AdminUserPrinciple) authentication.getPrincipal()).setAccessToken(tokenData.getAccessToken());
+            ((AdminUserPrinciple) authentication.getPrincipal()).setRefreshToken(tokenData.getRefreshToken());
+
+            ((AdminUserPrinciple) authentication.getPrincipal()).setAccessTokenExpirationSecond(jwtService.getJwtExpiration());
+            ((AdminUserPrinciple) authentication.getPrincipal()).setRefreshTokenExpirationSecond(jwtService.getJwtRefreshExpiration());
+        } catch (AppException e) {
+            log.error(e.toString(), e);
+            returnFail.setCode(Constants.ERROR_SYSTEM);
+            returnFail.setMessage(ErrorCode.ERROR_999);
+            return returnFail;
+        }
+
         return CommonData.builder()
                 .code(Constants.SUCCESSFUL)
                 .message("")
-                .timeOut("")
-                .body((""))
+                .timeOut(timeOut)
+                .body((AdminUserPrinciple) authentication.getPrincipal())
                 .build();
     }
 

@@ -21,6 +21,7 @@ public class Constants {
     public static final String ERROR_PASSWORD_NOT_NULL = "APP302";
     public static final String ERROR_APP_NOT_COMPARE = "APP303";
     public static final String PERMIT = "APP304";
+    public static final String ERROR_LOCK_TIME = "APP999";
 
     public static final String ENCRYPT_ALGORITHM = "SHA";
     public static final String ENCRYPT_ALGORITHM_2 = "MD5";

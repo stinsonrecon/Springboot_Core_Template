@@ -4,6 +4,8 @@ public class AppPath {
     public static final String ACTION_EXPORT_FILE = "/hust/exportFile";
 
     public static final class REQUEST_MAPPING {
+        // Common api START
+        public static final String GET_USER_INFO = "/get-user-info";
         // BankAccount START
         public static final String GET_ALL_BANK_ACCOUNT_BY_DEPARTMENT = "/get-by-department";
 
